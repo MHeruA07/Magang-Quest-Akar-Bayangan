@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Magang Quest – Akar Bayangan</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style_fishing.css" />
+  <link rel="stylesheet" href="style_extra.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ============================================================
+     INTRO / STORY SCREEN
+============================================================ -->
+<div id="intro-screen" class="screen active">
+  <div id="intro-bg"></div>
+  <div id="intro-content">
+    <div id="intro-logo">
+      <span class="logo-main">MAGANG QUEST</span>
+      <span class="logo-sub">— Akar Bayangan —</span>
+    </div>
+
+    <!-- Character Setup -->
+    <div id="char-setup">
+      <h2 class="setup-title">✦ Buat Karaktermu ✦</h2>
+
+      <div class="setup-row">
+        <label>Nama Karakter:</label>
+        <input type="text" id="char-name" maxlength="12" placeholder="Masukkan nama..." autocomplete="off" />
+      </div>
+
+      <div class="setup-row">
+        <label>Pilih Karakter (8 pilihan):</label>
+        <div id="outfit-selector"></div>
+      </div>
+
+      <button id="start-story-btn" class="big-btn pulse">▶ Mulai Petualangan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     STORY / CUTSCENE SCREEN
+============================================================ -->
+<div id="story-screen" class="screen">
+  <div id="story-video-wrap">
+    <div id="story-video-placeholder">
+      <div id="story-panels"></div>
+    </div>
+  </div>
+  <div id="story-dialog-box">
+    <div id="story-speaker"></div>
+    <div id="story-text"></div>
+    <div id="story-controls">
+      <button id="story-next-btn">Selanjutnya ▶</button>
+    </div>
+  </div>
+  <div id="story-progress-bar"><div id="story-progress-fill"></div></div>
+</div>
+
+<!-- ============================================================
+     MAIN GAME SCREEN
+============================================================ -->
+<div id="game-screen" class="screen">
+
+  <!-- HUD Top Bar -->
+  <div id="hud-top">
+    <div id="hud-left">
+      <div id="hud-avatar"></div>
+      <div id="hud-stats">
+        <div class="stat-bar">
+          <span class="stat-icon">🛡</span>
+          <div class="bar-wrap"><div id="bar-integrity" class="bar green"></div></div>
+          <span id="val-integrity">100</span>
+        </div>
+        <div class="stat-bar">
+          <span class="stat-icon">🌟</span>
+          <div class="bar-wrap"><div id="bar-trust" class="bar blue"></div></div>
+          <span id="val-trust">100</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="hud-center">
+      <div id="hud-clock">⏰ <span id="clock-display">08:00</span></div>
+      <div id="hud-day">Hari <span id="day-display">1</span> / 7</div>
+      <div id="hud-phase"></div>
+    </div>
+
+    <div id="hud-right">
+      <div id="shadow-meter">
+        <span>🌑 Akar Bayangan</span>
+        <div class="bar-wrap wide"><div id="bar-shadow" class="bar red"></div></div>
+        <span id="val-shadow">0%</span>
+      </div>
+        <div id="money-hud">
+ 💰 <span id="money-text">500</span>
+  </div>
+      <div id="hud-buttons">
+        <button class="hud-btn" id="btn-backpack" title="Ransel">🎒</button>
+        <button class="hud-btn" id="btn-quest" title="Misi">📋</button>
+        <button class="hud-btn" id="btn-news" title="Papan Berita">📰</button>
+        <button class="hud-btn" id="btn-settings" title="Pengaturan">⚙️</button>
+        <button class="hud-btn" id="btn-pause" title="Jeda">⏸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Mobile D-Pad -->
+  <div id="mobile-controls">
+    <div id="dpad">
+      <button class="dpad-btn" id="btn-up">▲</button>
+      <div class="dpad-row">
+        <button class="dpad-btn" id="btn-left">◀</button>
+        <div class="dpad-center">✦</div>
+        <button class="dpad-btn" id="btn-right">▶</button>
+      </div>
+      <button class="dpad-btn" id="btn-down">▼</button>
+    </div>
+    <div id="action-btns">
+      <!-- Interact button — labeled clearly -->
+      <button class="action-btn" id="btn-interact" title="Bicara / Interaksi (E)">
+        <span style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+          <span style="font-size:24px;line-height:1">💬</span>
+          <span style="font-size:8px;line-height:1;opacity:0.7;font-family:sans-serif;">AKSI</span>
+        </span>
+      </button>
+      <!-- Run button -->
+      <button class="action-btn" id="btn-run" title="Lari (Shift)">
+        <span style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+          <span style="font-size:22px;line-height:1">🏃</span>
+          <span style="font-size:8px;line-height:1;opacity:0.7;font-family:sans-serif;">LARI</span>
+        </span>
+      </button>
+      <!-- Fishing button -->
+      <button class="action-btn" id="btn-fish-mobile" title="Pancing (F)">
+        <span style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+          <span style="font-size:22px;line-height:1">🎣</span>
+          <span style="font-size:8px;line-height:1;opacity:0.7;font-family:sans-serif;">PANCING</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Interaction Prompt -->
+  <div id="interact-prompt" class="hidden">Tekan E / 💬 untuk bicara</div>
+
+</div>
+
+<!-- ============================================================
+     DIALOG / NPC BOX
+============================================================ -->
+<div id="dialog-overlay" class="hidden">
+  <div id="dialog-box">
+    <div id="dialog-header">
+      <div id="dialog-portrait"></div>
+      <div id="dialog-speaker-name"></div>
+    </div>
+    <div id="dialog-text"></div>
+    <div id="dialog-choices"></div>
+    <button id="dialog-next">▶ Lanjut</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     BACKPACK UI
+============================================================ -->
+<div id="backpack-overlay" class="panel-overlay hidden">
+  <div class="panel">
+    <div class="panel-title">🎒 Ransel & Karakter</div>
+    <div id="backpack-content">
+      <div id="char-preview-wrap">
+        <canvas id="char-preview-canvas" width="70" height="90"></canvas>
+        <div id="outfit-change-wrap">
+          <label>Ganti Pakaian:</label>
+          <div id="outfit-selector-ingame"></div>
+        </div>
+      </div>
+      <div id="items-grid"></div>
+    </div>
+    <button class="close-panel">✕ Tutup</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     QUEST LOG
+============================================================ -->
+<div id="quest-overlay" class="panel-overlay hidden">
+  <div class="panel wide">
+    <div class="panel-title">📋 Daftar Misi</div>
+    <div id="quest-tabs">
+      <button class="qtab active" data-tab="main">Utama</button>
+      <button class="qtab" data-tab="side">Sampingan</button>
+      <button class="qtab" data-tab="daily">Harian</button>
+      <button class="qtab" data-tab="done">Selesai</button>
+    </div>
+    <div id="quest-list"></div>
+    <button class="close-panel">✕ Tutup</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     NEWS BOARD
+============================================================ -->
+<div id="news-overlay" class="panel-overlay hidden">
+  <div class="panel wide">
+    <div class="panel-title">📰 Papan Berita Kota</div>
+    <div id="news-list"></div>
+    <button class="close-panel">✕ Tutup</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SETTINGS
+============================================================ -->
+<div id="settings-overlay" class="panel-overlay hidden">
+  <div class="panel">
+    <div class="panel-title">⚙️ Pengaturan</div>
+    <div class="setting-row">
+      <label>🔊 Musik</label>
+      <input type="range" id="music-vol" min="0" max="100" value="70" />
+    </div>
+    <div class="setting-row">
+      <label>🔔 Efek Suara</label>
+      <input type="range" id="sfx-vol" min="0" max="100" value="80" />
+    </div>
+    <div class="setting-row">
+      <label>⌨️ Kontrol</label>
+      <div class="control-hints">
+        <span>W/A/S/D = Gerak</span>
+        <span>E = Interaksi</span>
+        <span>Shift = Lari</span>
+        <span>B = Ransel</span>
+        <span>Q = Misi</span>
+        <span>N = Berita</span>
+        <span>F = Pancing</span>
+        <span>P / Esc = Jeda</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>🖥️ Tampilan</label>
+      <button id="btn-fullscreen">Layar Penuh</button>
+    </div>
+    <div class="setting-row">
+      <label>🔁 Reset Game</label>
+      <button id="btn-reset" class="danger-btn">Reset Data</button>
+    </div>
+    <button class="close-panel">✕ Tutup</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAUSE SCREEN
+============================================================ -->
+<div id="pause-overlay" class="hidden">
+  <div id="pause-box">
+    <div class="pause-title">— JEDA —</div>
+    <button id="pause-resume">▶ Lanjutkan</button>
+    <button id="pause-settings">⚙️ Pengaturan</button>
+    <button id="pause-quit">🏠 Menu Utama</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     NOTIFICATION TOAST
+============================================================ -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     SHADOW BOSS EVENT
+============================================================ -->
+<div id="shadow-event" class="hidden">
+  <div id="shadow-content">
+    <div id="shadow-icon">🌑</div>
+    <div id="shadow-msg"></div>
+    <div id="shadow-pct-display"></div>
+  </div>
+</div>
+
+<!-- Scripts loaded in correct order: base engine, then fishing addon -->
+<script src="game.js"></script>
+<script src="fishing.js"></script>
+<script src="patch.js"></script>
+<script src="quest_system.js"></script>
+
+<!-- Mobile fishing button hookup -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const mobileBtn = document.getElementById('btn-fish-mobile');
+    if (mobileBtn) {
+      mobileBtn.addEventListener('click', () => {
+        if (typeof nearFishingSpot !== 'undefined' && nearFishingSpot && typeof FS !== 'undefined' && !FS.active) {
+          openFishingUI(nearFishingSpot.id);
+        } else if (typeof openFishInventory !== 'undefined') {
+          openFishInventory();
+        }
+      });
+      mobileBtn.addEventListener('touchstart', e => {
+        e.preventDefault();
+        mobileBtn.click();
+      });
+    }
+  });
+</script>
+
+<!-- SHOP -->
+<div id="shop-ui" class="hidden">
+
+  <div id="shop-box">
+
+    <div id="shop-header">
+      <h2>🏪 Minimarket</h2>
+      <button onclick="closeShop()">✕</button>
+    </div>
+
+    <div id="shop-money">
+      Uang:
+      💰 <span id="shop-money-text">500</span>
+    </div>
+
+    <div class="shop-item">
+      <div>
+        <h3>🍞 Roti</h3>
+        <p>Heal +10</p>
+      </div>
+
+      <button onclick="buyItem('roti',25)">
+        Rp25
+      </button>
+    </div>
+
+    <div class="shop-item">
+      <div>
+        <h3>🥤 Air</h3>
+        <p>Heal +5</p>
+      </div>
+
+      <button onclick="buyItem('air',15)">
+        Rp15
+      </button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- INVENTORY -->
+<div id="inventory-ui" class="hidden">
+
+  <div id="inventory-box">
+
+    <div id="inventory-header">
+      <h2>🎒 Inventory</h2>
+      <button onclick="closeInventory()">✕</button>
+    </div>
+
+    <div id="inventory-items"></div>
+
+  </div>
+
+</div>
+
+</body>
+</html>

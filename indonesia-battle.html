@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Battle — Magang Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&family=Nunito:wght@700;900&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --gold:#f0c040; --red:#ef5350; --blue:#64b5f6;
+    --green:#66bb6a; --dark:#0d1b2a; --darker:#070e18;
+    --shadow-red:#8b0000;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--darker);font-family:'Nunito',sans-serif;overflow:hidden;width:100vw;height:100vh;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes flash{0%,100%{filter:brightness(1)}50%{filter:brightness(3) saturate(0)}}
+  @keyframes chargeUp{0%{box-shadow:0 0 0 rgba(240,192,64,0)} 100%{box-shadow:0 0 40px 10px rgba(240,192,64,0.8)}}
+  @keyframes victoryFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+  @keyframes defeatFall{0%{transform:rotate(0) translateY(0)} 100%{transform:rotate(-90deg) translateY(50px);opacity:0}}
+  @keyframes numberFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-40px)}}
+  @keyframes bossEntrance{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @keyframes scanline{0%{background-position:0 0}100%{background-position:0 100%}}
+  @keyframes redGlow{0%,100%{text-shadow:0 0 10px #ef5350}50%{text-shadow:0 0 30px #ef5350,0 0 60px #c62828}}
+  @keyframes bgShift{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(360deg)}}
+  @keyframes skillSelect{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+
+  /* ── BATTLE SCREEN */
+  #battle-screen{
+    position:relative;width:100vw;height:100vh;
+    background:linear-gradient(180deg,#0d1b2a 0%,#1a0a2a 40%,#1a0000 100%);
+    display:flex;flex-direction:column;
+    animation:fadeIn 0.5s ease;
+    overflow:hidden;
+  }
+
+  /* Animated scanline overlay */
+  #battle-screen::after{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+    pointer-events:none;z-index:0;
+  }
+
+  /* ── BACKGROUND ARENA */
+  #battle-arena{
+    position:relative;flex:1;
+    display:flex;align-items:flex-end;justify-content:space-between;
+    padding:0 40px 20px;
+    overflow:hidden;
+  }
+  #arena-bg{
+    position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 80%,rgba(139,0,0,0.3) 0%,transparent 70%),
+               radial-gradient(ellipse at 30% 60%,rgba(100,181,246,0.1) 0%,transparent 50%),
+               linear-gradient(180deg,#0d1b2a 0%,#1a1040 50%,#2a0a0a 100%);
+  }
+  /* Ground platform */
+  #arena-bg::before{
+    content:'';position:absolute;bottom:0;left:0;right:0;height:80px;
+    background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0.5) 100%);
+    border-top:2px solid rgba(240,192,64,0.2);
+  }
+
+  /* ── ENEMY SIDE (left-ish, top-right) */
+  #enemy-zone{
+    position:absolute;right:60px;top:40px;
+    display:flex;flex-direction:column;align-items:flex-end;
+    gap:10px;z-index:2;
+  }
+  #enemy-info{
+    background:linear-gradient(135deg,rgba(139,0,0,0.85),rgba(26,0,0,0.9));
+    border:2px solid rgba(239,83,80,0.5);
+    border-radius:12px;padding:12px 18px;
+    min-width:240px;
+    box-shadow:0 0 30px rgba(139,0,0,0.5),inset 0 1px rgba(255,255,255,0.1);
+  }
+  #enemy-name{
+    font-family:'Press Start 2P',monospace;font-size:10px;
+    color:#ef5350;margin-bottom:4px;
+    animation:redGlow 2s infinite;
+  }
+  #enemy-title{font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:10px;}
+  .hp-label{font-size:9px;color:rgba(255,255,255,0.5);margin-bottom:4px;font-family:'Press Start 2P',monospace;}
+  .hp-bar-wrap{height:12px;background:rgba(0,0,0,0.5);border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);}
+  .hp-bar{height:100%;border-radius:6px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;}
+  .hp-bar::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);animation:shimmer 2s infinite;}
+  @keyframes shimmer{0%{left:-100%}100%{left:100%}}
+  #enemy-hp-bar{background:linear-gradient(90deg,#ef5350,#c62828);}
+  #enemy-hp-text{font-size:10px;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;font-family:'Press Start 2P',monospace;}
+  #enemy-status-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .status-badge{font-size:9px;padding:2px 8px;border-radius:10px;font-weight:700;}
+
+  /* ── ENEMY SPRITE */
+  #enemy-sprite-wrap{
+    position:absolute;right:80px;top:80px;
+    z-index:3;
+  }
+  #enemy-canvas{
+    display:block;
+    filter:drop-shadow(0 0 20px rgba(139,0,0,0.8));
+    animation:bossEntrance 0.8s ease-out forwards;
+  }
+  .enemy-dead{animation:defeatFall 1s ease-in forwards!important;}
+
+  /* ── PLAYER SIDE (left bottom) */
+  #player-zone{
+    position:absolute;left:40px;bottom:100px;
+    display:flex;flex-direction:column;
+    gap:10px;z-index:2;
+  }
+  #player-info{
+    background:linear-gradient(135deg,rgba(13,27,42,0.9),rgba(21,101,192,0.3));
+    border:2px solid rgba(100,181,246,0.4);
+    border-radius:12px;padding:12px 18px;
+    min-width:220px;
+    box-shadow:0 0 20px rgba(100,181,246,0.2);
+  }
+  #player-name-battle{
+    font-family:'Press Start 2P',monospace;font-size:9px;
+    color:#64b5f6;margin-bottom:4px;
+  }
+  #player-title-battle{font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:10px;}
+  #player-hp-bar{background:linear-gradient(90deg,#66bb6a,#2e7d32);}
+  #player-hp-text{font-size:10px;color:rgba(255,255,255,0.6);margin-top:4px;font-family:'Press Start 2P',monospace;}
+
+  /* ── PLAYER SPRITE */
+  #player-sprite-wrap{
+    position:absolute;left:40px;bottom:90px;
+    z-index:3;
+  }
+  #player-canvas{
+    display:block;
+    filter:drop-shadow(0 0 15px rgba(100,181,246,0.6));
+    animation:bounce 2s ease-in-out infinite;
+  }
+
+  /* ── BATTLE LOG */
+  #battle-log{
+    position:absolute;left:50%;bottom:100px;
+    transform:translateX(-50%);
+    width:min(400px,50vw);
+    background:rgba(0,0,0,0.7);
+    border:1px solid rgba(240,192,64,0.3);
+    border-radius:10px;padding:12px 16px;
+    z-index:4;
+  }
+  #battle-log-text{
+    font-family:'VT323',monospace;font-size:20px;
+    color:#e8e8ff;line-height:1.4;
+    min-height:50px;
+    text-align:center;
+  }
+
+  /* ── SKILL PANEL (bottom) */
+  #skill-panel{
+    position:relative;z-index:10;
+    background:linear-gradient(180deg,rgba(0,0,0,0.8),rgba(13,27,42,0.95));
+    border-top:2px solid rgba(240,192,64,0.3);
+    padding:16px 20px;
+  }
+  #skill-hint{
+    font-family:'Press Start 2P',monospace;font-size:8px;
+    color:rgba(255,255,255,0.4);margin-bottom:12px;text-align:center;
+  }
+  #skills-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    gap:10px;max-width:800px;margin:0 auto;
+  }
+  .skill-btn{
+    padding:12px 8px;
+    background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
+    border:1.5px solid rgba(255,255,255,0.15);
+    border-radius:10px;cursor:pointer;
+    color:#fff;transition:all 0.2s;
+    position:relative;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  .skill-btn:hover:not(:disabled){
+    transform:translateY(-3px);
+    box-shadow:0 8px 20px rgba(0,0,0,0.4);
+    animation:skillSelect 0.3s ease;
+  }
+  .skill-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .skill-btn::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(135deg,transparent,rgba(255,255,255,0.05));
+    opacity:0;transition:opacity 0.2s;
+  }
+  .skill-btn:hover::before{opacity:1;}
+  .skill-icon{font-size:24px;}
+  .skill-name{font-family:'Press Start 2P',monospace;font-size:7px;color:rgba(255,255,255,0.8);}
+  .skill-power{font-size:10px;color:rgba(255,255,255,0.4);}
+  .skill-type-integrity{border-color:rgba(100,181,246,0.5);background:linear-gradient(135deg,rgba(100,181,246,0.1),rgba(21,101,192,0.1));}
+  .skill-type-trust{border-color:rgba(102,187,106,0.5);background:linear-gradient(135deg,rgba(102,187,106,0.1),rgba(46,125,50,0.1));}
+  .skill-type-evidence{border-color:rgba(240,192,64,0.5);background:linear-gradient(135deg,rgba(240,192,64,0.1),rgba(245,127,23,0.1));}
+  .skill-type-special{border-color:rgba(206,147,216,0.5);background:linear-gradient(135deg,rgba(206,147,216,0.1),rgba(74,20,140,0.1));}
+
+  /* ── TURN INDICATOR */
+  #turn-indicator{
+    position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    font-family:'Press Start 2P',monospace;font-size:9px;
+    padding:6px 16px;border-radius:20px;z-index:10;
+    background:rgba(240,192,64,0.15);
+    border:1px solid rgba(240,192,64,0.4);
+    color:#f0c040;
+    animation:pulse 2s infinite;
+  }
+
+  /* ── DAMAGE NUMBER */
+  .damage-number{
+    position:absolute;z-index:100;
+    font-family:'Press Start 2P',monospace;font-size:20px;
+    font-weight:900;
+    pointer-events:none;
+    animation:numberFloat 1.2s ease-out forwards;
+  }
+
+  /* ── VICTORY/DEFEAT */
+  #battle-result{
+    display:none;
+    position:absolute;inset:0;z-index:200;
+    background:rgba(0,0,0,0.85);
+    align-items:center;justify-content:center;
+    flex-direction:column;gap:20px;
+    animation:fadeIn 0.5s ease;
+  }
+  #result-title{
+    font-family:'Press Start 2P',monospace;font-size:clamp(20px,4vw,48px);
+    text-align:center;
+  }
+  #result-stats{
+    padding:20px 40px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .result-stat{
+    display:flex;justify-content:space-between;gap:30px;
+    font-size:13px;color:rgba(255,255,255,0.7);
+    font-family:'Press Start 2P',monospace;font-size:9px;
+  }
+  .result-stat span:last-child{color:#f0c040;}
+  #result-btn{
+    padding:14px 40px;
+    background:linear-gradient(90deg,#f0c040,#ff9800);
+    border:none;border-radius:8px;
+    font-family:'Press Start 2P',monospace;font-size:11px;
+    cursor:pointer;color:#000;
+    box-shadow:0 4px 20px rgba(240,192,64,0.4);
+    transition:transform 0.2s;
+  }
+  #result-btn:hover{transform:scale(1.05);}
+
+  /* ── ENEMY ATTACK ANIMATION */
+  @keyframes enemyAttack{
+    0%{transform:translateX(0)}
+    30%{transform:translateX(-60px)}
+    60%{transform:translateX(0)}
+  }
+  @keyframes playerHit{
+    0%,100%{filter:drop-shadow(0 0 15px rgba(100,181,246,0.6))}
+    50%{filter:drop-shadow(0 0 30px rgba(239,83,80,0.9)) brightness(2)}
+  }
+  @keyframes playerAttack{
+    0%{transform:translateX(0)}
+    30%{transform:translateX(80px)}
+    60%{transform:translateX(0)}
+  }
+  @keyframes enemyHit{
+    0%,100%{filter:drop-shadow(0 0 20px rgba(139,0,0,0.8))}
+    50%{filter:drop-shadow(0 0 40px rgba(240,192,64,1)) brightness(2)}
+  }
+
+  /* ── PHASE ANNOUNCEMENT */
+  #phase-announce{
+    display:none;position:absolute;inset:0;z-index:150;
+    align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  #phase-announce-text{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(24px,5vw,60px);
+    color:#f0c040;
+    text-shadow:0 0 40px rgba(240,192,64,0.8),0 0 80px rgba(240,192,64,0.4);
+    animation:phaseAnim 1.5s ease forwards;
+  }
+  @keyframes phaseAnim{
+    0%{opacity:0;transform:scale(0.5)}
+    30%{opacity:1;transform:scale(1.1)}
+    70%{opacity:1;transform:scale(1)}
+    100%{opacity:0;transform:scale(0.9)}
+  }
+
+  /* mobile */
+  @media(max-width:600px){
+    #enemy-zone{right:10px;top:20px;}
+    #enemy-info{min-width:160px;padding:8px 12px;}
+    #player-zone{left:10px;}
+    #player-info{min-width:160px;padding:8px 12px;}
+    #skills-grid{grid-template-columns:repeat(2,1fr);}
+    #battle-log{width:90vw;}
+  }
+</style>
+</head>
+<body>
+<div id="battle-screen">
+  <!-- Turn indicator -->
+  <div id="turn-indicator">⚔️ PILIH AKSI</div>
+
+  <!-- Phase announcement -->
+  <div id="phase-announce"><div id="phase-announce-text"></div></div>
+
+  <!-- Arena -->
+  <div id="battle-arena">
+    <div id="arena-bg"></div>
+
+    <!-- Enemy -->
+    <div id="enemy-zone">
+      <div id="enemy-info">
+        <div id="enemy-name">PAK CAMAT</div>
+        <div id="enemy-title">👨‍⚖️ Pemimpin Akar Bayangan</div>
+        <div class="hp-label">HP KEJAHATAN</div>
+        <div class="hp-bar-wrap"><div id="enemy-hp-bar" class="hp-bar" style="width:100%"></div></div>
+        <div id="enemy-hp-text">100 / 100</div>
+        <div id="enemy-status-badges"></div>
+      </div>
+    </div>
+
+    <div id="enemy-sprite-wrap">
+      <canvas id="enemy-canvas" width="150" height="180"></canvas>
+    </div>
+
+    <!-- Player -->
+    <div id="player-zone">
+      <div id="player-info">
+        <div id="player-name-battle">KAMU</div>
+        <div id="player-title-battle">🎓 Peserta Magang Pemberani</div>
+        <div class="hp-label">HP INTEGRITAS</div>
+        <div class="hp-bar-wrap"><div id="player-hp-bar" class="hp-bar" style="width:100%"></div></div>
+        <div id="player-hp-text">10 / 100</div>
+      </div>
+    </div>
+
+    <div id="player-sprite-wrap">
+      <canvas id="player-canvas" width="120" height="150"></canvas>
+    </div>
+
+    <!-- Battle log -->
+    <div id="battle-log">
+      <div id="battle-log-text">⚔️ Pertarungan dimulai!</div>
+    </div>
+  </div>
+
+  <!-- Skill panel -->
+  <div id="skill-panel">
+    <div id="skill-hint">▲ PILIH AKSI ▲</div>
+    <div id="skills-grid"></div>
+  </div>
+
+  <!-- Result overlay -->
+  <div id="battle-result">
+    <div id="result-title">MENANG!</div>
+    <div id="result-stats"></div>
+    <button id="result-btn">▶ Lanjutkan</button>
+  </div>
+</div>
+
+<script src="quest_system.js"></script>
+
+<script>
+// ────────────────────────────────────────────────────────────
+//  BATTLE SYSTEM
+// ────────────────────────────────────────────────────────────
+'use strict';
+
+const BATTLE_SKILLS = [
+  {
+    id:'evidence', name:'TUNJUKKAN\nBUKTI', icon:'📋', type:'evidence',
+    power:25, desc:'Tunjukkan semua bukti korupsi yang kamu kumpulkan!',
+    effect: (bs) => { bs.enemyStatus.add('TERUNGKAP'); addLog('📋 Bukti ditunjukkan! Pak Camat terkejut!'); }
+  },
+  {
+    id:'integrity', name:'KETEGASAN', icon:'🛡', type:'integrity',
+    power:20, desc:'Tegaskan pendirianmu yang tidak tergoyahkan!',
+    effect: (bs) => { bs.playerDef += 10; addLog('🛡 Pertahananmu menguat! DEF +10'); }
+  },
+  {
+    id:'report', name:'LAPORAN\nRESMI', icon:'⚖️', type:'evidence',
+    power:30, desc:'Buat laporan resmi ke Inspektorat Kota!',
+    effect: (bs) => { bs.enemyStatus.add('DILAPORKAN'); addLog('⚖️ Laporan resmi dikirim! Hukum berlaku!'); }
+  },
+  {
+    id:'solidarity', name:'SOLIDARITY', icon:'🤝', type:'trust',
+    power:15, desc:'Warga kota mendukungmu!',
+    effect: (bs) => { bs.playerHp = Math.min(bs.playerMaxHp, bs.playerHp + 15); addLog('🤝 Warga mendukungmu! HP +15'); updatePlayerHpBar(bs); }
+  },
+  {
+    id:'media', name:'MEDIA\nSEREBU', icon:'📰', type:'trust',
+    power:22, desc:'Siarkan berita korupsi ke seluruh kota!',
+    effect: (bs) => { bs.enemyStatus.add('DIEKSPOS'); addLog('📰 Berita tersebar! Pak Camat panik!'); }
+  },
+  {
+    id:'truth', name:'SERANGAN\nKEBENARAN', icon:'⚡', type:'special',
+    power:40, desc:'Kebenaran adalah senjata terkuat!',
+    effect: (bs) => { addLog('⚡ KEBENARAN MENYERANG! Critical Hit!'); }
+  },
+  {
+    id:'defend', name:'BERTAHAN', icon:'🛡', type:'integrity',
+    power:0, desc:'Hindari serangan dan pulihkan HP.',
+    effect: (bs) => { bs.playerHp = Math.min(bs.playerMaxHp, bs.playerHp + 10); bs.playerDef += 5; addLog('🛡 Bertahan! HP +10, DEF +5'); updatePlayerHpBar(bs); }
+  },
+  {
+    id:'expose_all', name:'UNGKAP\nSEMUA', icon:'🌟', type:'special',
+    power:50, desc:'ULTIMATE! Ungkap semua konspirasi sekaligus!',
+    effect: (bs) => { bs.enemyStatus.add('TERUNGKAP'); bs.enemyStatus.add('DILAPORKAN'); bs.enemyStatus.add('DIEKSPOS'); addLog('🌟 ULTIMATE! Semua konspirasi terungkap!!'); }
+  },
+];
+
+const ENEMY_ATTACKS = [
+  { name: 'Ancaman Diam', power: 15, text: '😡 "Kamu akan menyesal jika lanjutkan ini!"' },
+  { name: 'Tawaran Suap', power: 10, text: '💰 "Ini 10 juta, lupakan semua yang kamu tahu!"', effect: bs => { bs.playerDef -= 3; } },
+  { name: 'Fitnah', power: 20, text: '🗣️ "Laporan kamu palsu! Kamu yang korupsi!"' },
+  { name: 'Intimidasi', power: 25, text: '😤 Pak Camat menggebrak meja dengan keras!' },
+  { name: 'Koneksi Kekuasaan', power: 30, text: '👥 "Aku punya orang di mana-mana! Kamu tidak aman!"' },
+  { name: 'Akar Bayangan', power: 35, text: '🌑 AKAR BAYANGAN menyerang dari balik kegelapan!' },
+];
+
+// Battle State
+const BS = {
+  playerName: 'Hero',
+  playerHp: 100, playerMaxHp: 100, playerDef: 0,
+  enemyHp: 100, enemyMaxHp: 100,
+  enemyStatus: new Set(),
+  turn: 'player',
+  round: 1,
+  skillsUsed: {},
+  totalDamage: 0,
+  bribed: false,
+  onWin: null, onLose: null,
+};
+
+let logQueue = [];
+let logProcessing = false;
+
+function addLog(text, delay = 0) {
+  logQueue.push({ text, delay });
+  if (!logProcessing) processLogQueue();
+}
+
+function processLogQueue() {
+  if (logQueue.length === 0) { logProcessing = false; return; }
+  logProcessing = true;
+  const item = logQueue.shift();
+  setTimeout(() => {
+    const el = document.getElementById('battle-log-text');
+    if (el) {
+      el.style.animation = 'none';
+      el.offsetHeight; // reflow
+      el.style.animation = '';
+      el.textContent = item.text;
+    }
+    setTimeout(processLogQueue, 1200);
+  }, item.delay);
+}
+
+function updateEnemyHpBar() {
+  const pct = Math.max(0, BS.enemyHp / BS.enemyMaxHp * 100);
+  const bar = document.getElementById('enemy-hp-bar');
+  const txt = document.getElementById('enemy-hp-text');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct > 50 ? 'linear-gradient(90deg,#ef5350,#c62828)'
+      : pct > 25 ? 'linear-gradient(90deg,#ff9800,#e65100)'
+      : 'linear-gradient(90deg,#ffd700,#ff6f00)';
+  }
+  if (txt) txt.textContent = `${Math.max(0,BS.enemyHp)} / ${BS.enemyMaxHp}`;
+  updateStatusBadges();
+}
+
+function updatePlayerHpBar() {
+  const pct = Math.max(0, BS.playerHp / BS.playerMaxHp * 100);
+  const bar = document.getElementById('player-hp-bar');
+  const txt = document.getElementById('player-hp-text');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct > 50 ? 'linear-gradient(90deg,#66bb6a,#2e7d32)'
+      : pct > 25 ? 'linear-gradient(90deg,#ff9800,#e65100)'
+      : 'linear-gradient(90deg,#ef5350,#c62828)';
+  }
+  if (txt) txt.textContent = `${Math.max(0,BS.playerHp)} / ${BS.playerMaxHp}`;
+}
+
+function updateStatusBadges() {
+  const el = document.getElementById('enemy-status-badges');
+  if (!el) return;
+  const colors = {
+    TERUNGKAP: '#f0c040', DILAPORKAN: '#64b5f6',
+    DIEKSPOS: '#ef5350', LEMAH: '#ff7043'
+  };
+  el.innerHTML = [...BS.enemyStatus].map(s => `
+    <span class="status-badge" style="background:${colors[s]||'#999'}33;color:${colors[s]||'#999'};border:1px solid ${colors[s]||'#999'}66;">
+      ${s}
+    </span>
+  `).join('');
+}
+
+function spawnDamageNumber(amount, targetId, color = '#ef5350') {
+  const wrap = document.getElementById(targetId + '-sprite-wrap') || document.getElementById('battle-arena');
+  if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = 'damage-number';
+  el.textContent = (amount > 0 ? '-' : '+') + Math.abs(amount);
+  el.style.color = color;
+  el.style.textShadow = `0 0 10px ${color}`;
+  el.style.top = (Math.random() * 40 + 20) + 'px';
+  el.style.left = (Math.random() * 60 + 20) + '%';
+  wrap.style.position = 'relative';
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+function announcePhase(text, duration = 1500) {
+  return new Promise(res => {
+    const el = document.getElementById('phase-announce');
+    const tel = document.getElementById('phase-announce-text');
+    if (!el || !tel) { res(); return; }
+    tel.textContent = text;
+    el.style.display = 'flex';
+    setTimeout(() => { el.style.display = 'none'; res(); }, duration);
+  });
+}
+
+function disableSkills(disabled = true) {
+  document.querySelectorAll('.skill-btn').forEach(b => b.disabled = disabled);
+  const hint = document.getElementById('skill-hint');
+  if (hint) hint.textContent = disabled ? '⏳ MENUNGGU...' : '▲ PILIH AKSI ▲';
+  const ti = document.getElementById('turn-indicator');
+  if (ti) ti.textContent = disabled ? '🌑 GILIRAN MUSUH' : '⚔️ GILIRAN KAMU';
+}
+
+async function playerUseSkill(skill) {
+  disableSkills(true);
+
+  // Calculate damage
+  let dmg = skill.power;
+  const statusMult = BS.enemyStatus.size > 0 ? 1 + BS.enemyStatus.size * 0.15 : 1;
+  dmg = Math.floor(dmg * statusMult * (0.9 + Math.random() * 0.2));
+  const isCrit = Math.random() < 0.15;
+  if (isCrit) { dmg = Math.floor(dmg * 1.8); addLog('💥 CRITICAL HIT!'); }
+
+  BS.skillsUsed[skill.id] = (BS.skillsUsed[skill.id] || 0) + 1;
+  BS.totalDamage += dmg;
+
+  // Player attack animation
+  const pw = document.getElementById('player-canvas');
+  if (pw) pw.style.animation = 'playerAttack 0.6s ease';
+  setTimeout(() => { if (pw) pw.style.animation = 'bounce 2s ease-in-out infinite'; }, 600);
+
+  addLog(`${skill.icon} ${skill.name.replace('\n',' ')}! (×${Math.round(statusMult*10)/10}${isCrit?' CRIT':''}) → ${dmg} damage!`);
+  if (skill.effect) skill.effect(BS);
+
+  await new Promise(r => setTimeout(r, 400));
+
+  BS.enemyHp = Math.max(0, BS.enemyHp - dmg);
+  spawnDamageNumber(dmg, 'enemy', isCrit ? '#f0c040' : '#ef5350');
+
+  const ew = document.getElementById('enemy-canvas');
+  if (ew) { ew.style.animation = 'enemyHit 0.5s ease'; setTimeout(() => { if(ew) ew.style.animation = 'bossEntrance 0s forwards'; }, 500); }
+
+  updateEnemyHpBar();
+  await new Promise(r => setTimeout(r, 800));
+
+  if (BS.enemyHp <= 0) {
+    await endBattle(true);
+    return;
+  }
+
+  // Enemy turn
+  BS.round++;
+  await enemyTurn();
+}
+
+async function enemyTurn() {
+  if (BS.enemyHp <= 0) return;
+  await new Promise(r => setTimeout(r, 600));
+
+  const hpPct = BS.enemyHp / BS.enemyMaxHp;
+  // Higher index attacks when low HP
+  const maxAtk = hpPct < 0.3 ? ENEMY_ATTACKS.length : hpPct < 0.6 ? 4 : 3;
+  const atk = ENEMY_ATTACKS[Math.floor(Math.random() * maxAtk)];
+
+  const ew = document.getElementById('enemy-canvas');
+  if (ew) { ew.style.animation = 'enemyAttack 0.6s ease'; setTimeout(() => { if(ew) ew.style.animation = ''; }, 600); }
+
+  addLog(`${atk.text}`);
+  if (atk.effect) atk.effect(BS);
+
+  await new Promise(r => setTimeout(r, 500));
+
+  let dmg = atk.power - BS.playerDef;
+  dmg = Math.max(1, Math.floor(dmg * (0.8 + Math.random() * 0.4)));
+
+  const pw = document.getElementById('player-canvas');
+  if (pw) pw.style.animation = 'playerHit 0.5s ease';
+  setTimeout(() => { if(pw) pw.style.animation = 'bounce 2s ease-in-out infinite'; }, 500);
+
+  BS.playerHp = Math.max(0, BS.playerHp - dmg);
+  spawnDamageNumber(dmg, 'player', '#ef5350');
+  updatePlayerHpBar();
+
+  addLog(`💥 Kamu terkena serangan! -${dmg} HP`);
+  await new Promise(r => setTimeout(r, 800));
+
+  if (BS.playerHp <= 0) {
+    await endBattle(false);
+    return;
+  }
+
+  // Player's turn again
+  disableSkills(false);
+}
+
+async function endBattle(playerWon) {
+  disableSkills(true);
+
+  if (playerWon) {
+    await announcePhase('🏆 MENANG!', 2000);
+    const ew = document.getElementById('enemy-canvas');
+    if (ew) ew.classList.add('enemy-dead');
+    addLog('🎉 Pak Camat telah kalah! Kebenaran menang!');
+  } else {
+    await announcePhase('💔 KALAH!', 2000);
+    addLog('😔 Kamu dikalahkan... tapi jangan menyerah!');
+  }
+
+  await new Promise(r => setTimeout(r, 1500));
+  showResult(playerWon);
+}
+
+function showResult(won) {
+  const el = document.getElementById('battle-result');
+  const title = document.getElementById('result-title');
+  const stats = document.getElementById('result-stats');
+  const btn = document.getElementById('result-btn');
+
+  if (!el) return;
+  el.style.display = 'flex';
+  title.textContent = won ? '🏆 KEMENANGAN!' : '💔 KEKALAHAN';
+  title.style.color = won ? '#f0c040' : '#ef5350';
+  title.style.textShadow = `0 0 30px ${won?'#f0c040':'#ef5350'}`;
+
+  const statusList = [...BS.enemyStatus].join(', ') || 'Tidak ada';
+  stats.innerHTML = `
+    <div class="result-stat"><span>⚔️ Total Damage</span><span>${BS.totalDamage}</span></div>
+    <div class="result-stat"><span>🔄 Ronde</span><span>${BS.round}</span></div>
+    <div class="result-stat"><span>❤️ HP Tersisa</span><span>${BS.playerHp}%</span></div>
+    <div class="result-stat"><span>📋 Status Musuh</span><span>${statusList}</span></div>
+  `;
+  btn.textContent = won ? '▶ Lanjutkan Cerita' : '🔄 Coba Lagi';
+  btn.onclick = () => {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'battleResult', won }, '*');
+    } else {
+      if (won && BS.onWin) BS.onWin();
+      else if (!won && BS.onLose) BS.onLose();
+      else window.close();
+    }
+  };
+}
+
+// ── DRAW ENEMY (Pak Camat) ─────────────────────────────────
+function drawEnemy() {
+  const canvas = document.getElementById('enemy-canvas');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H * 0.7;
+  const t = Date.now() * 0.002;
+  const menace = Math.sin(t) * 3;
+
+  // Shadow
+  c.fillStyle = 'rgba(139,0,0,0.4)';
+  c.beginPath(); c.ellipse(cx, cy + 10, 35, 12, 0, 0, Math.PI * 2); c.fill();
+
+  // Legs
+  c.fillStyle = '#1a0a0a';
+  c.beginPath(); c.roundRect(cx - 16, cy - 5, 14, 30, 3); c.fill();
+  c.beginPath(); c.roundRect(cx + 2, cy - 5, 14, 30, 3); c.fill();
+  // Shoes
+  c.fillStyle = '#333';
+  c.beginPath(); c.roundRect(cx - 18, cy + 22, 18, 7, 3); c.fill();
+  c.beginPath(); c.roundRect(cx, cy + 22, 18, 7, 3); c.fill();
+
+  // Body - dark suit
+  c.fillStyle = '#1a0a0a';
+  c.beginPath(); c.roundRect(cx - 22, cy - 45, 44, 42, [6, 6, 10, 10]); c.fill();
+  // Lapels
+  c.fillStyle = '#2a0a0a';
+  c.beginPath(); c.moveTo(cx, cy - 44); c.lineTo(cx - 12, cy - 20); c.lineTo(cx - 22, cy - 44); c.fill();
+  c.beginPath(); c.moveTo(cx, cy - 44); c.lineTo(cx + 12, cy - 20); c.lineTo(cx + 22, cy - 44); c.fill();
+  // Red tie
+  c.fillStyle = '#8b0000';
+  c.beginPath(); c.moveTo(cx - 5, cy - 44); c.lineTo(cx + 5, cy - 44);
+  c.lineTo(cx + 7, cy - 20); c.lineTo(cx, cy - 12); c.lineTo(cx - 7, cy - 20); c.closePath(); c.fill();
+
+  // Arms
+  c.fillStyle = '#1a0a0a';
+  // Left arm raised (threatening)
+  c.save(); c.translate(cx - 22, cy - 30); c.rotate(-0.4 + Math.sin(t * 0.8) * 0.1);
+  c.beginPath(); c.roundRect(-6, -4, 12, 28, 4); c.fill();
+  c.fillStyle = '#c8a080';
+  c.beginPath(); c.roundRect(-5, 22, 10, 12, 4); c.fill();
+  // Fist
+  c.fillStyle = '#b89060';
+  c.beginPath(); c.roundRect(-6, 32, 13, 10, 3); c.fill();
+  c.restore();
+  // Right arm
+  c.fillStyle = '#1a0a0a';
+  c.save(); c.translate(cx + 22, cy - 30); c.rotate(0.2 + menace * 0.02);
+  c.beginPath(); c.roundRect(-6, -4, 12, 28, 4); c.fill();
+  c.fillStyle = '#c8a080';
+  c.beginPath(); c.roundRect(-5, 22, 10, 12, 4); c.fill();
+  c.restore();
+
+  // Neck
+  c.fillStyle = '#c8a080';
+  c.fillRect(cx - 6, cy - 55, 12, 12);
+
+  // Head
+  const headColor = '#c8a080';
+  c.fillStyle = headColor;
+  c.beginPath(); c.arc(cx, cy - 66, 24, 0, Math.PI * 2); c.fill();
+  // Shadow on head
+  c.fillStyle = 'rgba(0,0,0,0.1)'; c.beginPath(); c.arc(cx + 4, cy - 63, 20, 0, Math.PI * 2); c.fill();
+
+  // Hair (slicked back, gray/black)
+  c.fillStyle = '#1a1a1a';
+  c.beginPath(); c.roundRect(cx - 24, cy - 90, 48, 28, [12, 12, 0, 0]); c.fill();
+  c.fillStyle = '#333';
+  c.beginPath(); c.ellipse(cx, cy - 84, 18, 6, 0, 0, Math.PI * 2); c.fill();
+
+  // Evil eyes
+  c.fillStyle = '#1a0a0a';
+  c.beginPath(); c.arc(cx - 8, cy - 66, 4, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(cx + 8, cy - 66, 4, 0, Math.PI * 2); c.fill();
+  // Red glow in eyes
+  c.fillStyle = 'rgba(139,0,0,0.8)';
+  c.beginPath(); c.arc(cx - 8, cy - 66, 2.5, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(cx + 8, cy - 66, 2.5, 0, Math.PI * 2); c.fill();
+  // Eye glow
+  c.fillStyle = 'rgba(239,83,80,0.4)';
+  c.beginPath(); c.arc(cx - 8, cy - 66, 7, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(cx + 8, cy - 66, 7, 0, Math.PI * 2); c.fill();
+
+  // Menacing frown
+  c.strokeStyle = '#1a0a0a'; c.lineWidth = 2.5;
+  c.beginPath(); c.arc(cx, cy - 55, 8, Math.PI + 0.3, -0.3); c.stroke();
+  // Eyebrows (angry)
+  c.strokeStyle = '#1a0a0a'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(cx - 13, cy - 72); c.lineTo(cx - 3, cy - 70); c.stroke();
+  c.beginPath(); c.moveTo(cx + 13, cy - 72); c.lineTo(cx + 3, cy - 70); c.stroke();
+
+  // Shadow aura
+  const hpPct = BS.enemyHp / BS.enemyMaxHp;
+  const auraA = (1 - hpPct) * 0.5 + 0.1;
+  const grad = c.createRadialGradient(cx, cy - 40, 10, cx, cy - 40, 70);
+  grad.addColorStop(0, `rgba(139,0,0,${auraA})`);
+  grad.addColorStop(1, 'transparent');
+  c.fillStyle = grad;
+  c.beginPath(); c.arc(cx, cy - 40, 70, 0, Math.PI * 2); c.fill();
+
+  // HP indicator aura color
+  if (hpPct < 0.3) {
+    c.strokeStyle = `rgba(255,0,0,${0.5 + Math.sin(t * 3) * 0.3})`;
+    c.lineWidth = 3;
+    c.beginPath(); c.arc(cx, cy - 55, 50, 0, Math.PI * 2); c.stroke();
+  }
+}
+
+// ── DRAW PLAYER ────────────────────────────────────────────
+function drawPlayer() {
+  const canvas = document.getElementById('player-canvas');
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H * 0.75;
+  const t = Date.now() * 0.002;
+  const bob = Math.sin(t * 1.5) * 3;
+
+  // Shadow
+  c.fillStyle = 'rgba(100,181,246,0.2)';
+  c.beginPath(); c.ellipse(cx, cy + 8, 25, 8, 0, 0, Math.PI * 2); c.fill();
+
+  // Legs
+  c.fillStyle = '#1a1a2e';
+  c.beginPath(); c.roundRect(cx - 12, cy - 10 + bob, 10, 24, 2); c.fill();
+  c.beginPath(); c.roundRect(cx + 2, cy - 10 + bob, 10, 24, 2); c.fill();
+  c.fillStyle = '#f0f0f0';
+  c.beginPath(); c.roundRect(cx - 13, cy + 12 + bob, 13, 5, 2); c.fill();
+  c.beginPath(); c.roundRect(cx, cy + 12 + bob, 13, 5, 2); c.fill();
+
+  // Body - white shirt
+  c.fillStyle = '#f5f5f5';
+  c.beginPath(); c.roundRect(cx - 16, cy - 40 + bob, 32, 32, [4, 4, 8, 8]); c.fill();
+  c.fillStyle = 'rgba(0,0,0,0.06)'; c.beginPath(); c.roundRect(cx - 16, cy - 40 + bob, 32, 8, [4, 4, 0, 0]); c.fill();
+  // Lanyard
+  c.strokeStyle = '#e53935'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(cx, cy - 40 + bob); c.lineTo(cx, cy - 20 + bob); c.stroke();
+  c.fillStyle = '#1565c0';
+  c.fillRect(cx - 5, cy - 24 + bob, 10, 7);
+
+  // Arms
+  c.fillStyle = '#f5f5f5';
+  c.save(); c.translate(cx - 18, cy - 28 + bob); c.rotate(-0.2 + Math.sin(t * 1.5) * 0.15);
+  c.beginPath(); c.roundRect(-5, -3, 10, 20, 3); c.fill();
+  c.fillStyle = '#f0c8a0'; c.beginPath(); c.roundRect(-4, 16, 8, 8, 3); c.fill();
+  c.restore();
+  c.fillStyle = '#f5f5f5';
+  c.save(); c.translate(cx + 18, cy - 28 + bob); c.rotate(0.2 - Math.sin(t * 1.5) * 0.15);
+  c.beginPath(); c.roundRect(-5, -3, 10, 20, 3); c.fill();
+  c.fillStyle = '#f0c8a0'; c.beginPath(); c.roundRect(-4, 16, 8, 8, 3); c.fill();
+  c.restore();
+
+  // Neck + Head
+  c.fillStyle = '#f0c8a0';
+  c.fillRect(cx - 4, cy - 44 + bob, 8, 6);
+  c.beginPath(); c.arc(cx, cy - 57 + bob, 17, 0, Math.PI * 2); c.fill();
+
+  // Hair
+  c.fillStyle = '#111';
+  c.beginPath(); c.roundRect(cx - 17, cy - 74 + bob, 34, 20, [10, 10, 0, 0]); c.fill();
+  c.beginPath(); c.arc(cx - 2, cy - 68 + bob, 8, Math.PI, 0); c.fill();
+
+  // Face - confident
+  c.fillStyle = '#1a1a1a';
+  c.beginPath(); c.arc(cx - 5, cy - 57 + bob, 2.5, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(cx + 5, cy - 57 + bob, 2.5, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#fff';
+  c.beginPath(); c.arc(cx - 4, cy - 58 + bob, 1, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(cx + 6, cy - 58 + bob, 1, 0, Math.PI * 2); c.fill();
+  // Determined smile
+  c.strokeStyle = '#1a1a1a'; c.lineWidth = 1.5;
+  c.beginPath(); c.arc(cx, cy - 49 + bob, 5, 0.1, Math.PI - 0.1); c.stroke();
+
+  // Aura if HP is low
+  const hpPct = BS.playerHp / BS.playerMaxHp;
+  if (hpPct < 0.4) {
+    const grad = c.createRadialGradient(cx, cy - 40 + bob, 5, cx, cy - 40 + bob, 50);
+    grad.addColorStop(0, 'rgba(255,165,0,0.3)');
+    grad.addColorStop(1, 'transparent');
+    c.fillStyle = grad;
+    c.beginPath(); c.arc(cx, cy - 40 + bob, 50, 0, Math.PI * 2); c.fill();
+  }
+
+  // Blue hero aura
+  const aura = c.createRadialGradient(cx, cy - 40 + bob, 5, cx, cy - 40 + bob, 45);
+  aura.addColorStop(0, 'rgba(100,181,246,0.15)');
+  aura.addColorStop(1, 'transparent');
+  c.fillStyle = aura;
+  c.beginPath(); c.arc(cx, cy - 40 + bob, 45, 0, Math.PI * 2); c.fill();
+}
+
+// ── BUILD SKILL BUTTONS ────────────────────────────────────
+function buildSkillButtons() {
+  const grid = document.getElementById('skills-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  BATTLE_SKILLS.forEach(skill => {
+    const btn = document.createElement('button');
+    btn.className = `skill-btn skill-type-${skill.type}`;
+    btn.innerHTML = `
+      <span class="skill-icon">${skill.icon}</span>
+      <span class="skill-name">${skill.name}</span>
+      <span class="skill-power">${skill.power > 0 ? '⚡ ' + skill.power : '🛡 Heal'}</span>
+    `;
+    btn.title = skill.desc;
+    btn.onclick = () => playerUseSkill(skill);
+    grid.appendChild(btn);
+  });
+}
+
+// ── ANIMATION LOOP ─────────────────────────────────────────
+function battleAnimLoop() {
+  drawEnemy();
+  drawPlayer();
+  requestAnimationFrame(battleAnimLoop);
+}
+
+// ── INIT ───────────────────────────────────────────────────
+function initBattle(config = {}) {
+  BS.playerName = config.playerName || 'Hero';
+  BS.playerHp = config.playerHp || 100;
+  BS.playerMaxHp = config.playerMaxHp || 100;
+  BS.enemyHp = config.enemyHp || 100;
+  BS.enemyMaxHp = config.enemyMaxHp || 100;
+  BS.onWin = config.onWin || null;
+  BS.onLose = config.onLose || null;
+  BS.round = 1;
+  BS.totalDamage = 0;
+  BS.enemyStatus = new Set();
+  BS.playerDef = 0;
+
+  document.getElementById('player-name-battle').textContent = BS.playerName.toUpperCase();
+  updateEnemyHpBar();
+  updatePlayerHpBar();
+  buildSkillButtons();
+  battleAnimLoop();
+  announcePhase('⚔️ BATTLE START!', 1500).then(() => {
+    addLog(`${BS.playerName} menghadapi Pak Camat — Pemimpin Akar Bayangan!`);
+  });
+}
+
+// ── LISTEN FOR CONFIG FROM PARENT ─────────────────────────
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'initBattle') {
+    initBattle(e.data.config || {});
+  }
+});
+
+// Auto-init if standalone
+document.addEventListener('DOMContentLoaded', () => {
+  // Check URL params
+  const params = new URLSearchParams(window.location.search);
+  const name = params.get('name') || 'Magang';
+  initBattle({ playerName: name });
+});
+</script>
+</body>
+</html>
